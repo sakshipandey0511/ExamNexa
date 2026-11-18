@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ExamNexa — invigilation console (local build)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#DCE1E2; --surface:#F1F4F4; --surface-2:#E7ECEC; --inset:#CED5D6;
+  --ink:#141E26; --ink-2:#4A5B66; --ink-3:#7E8D95;
+  --rule:#BCC6C8; --rule-2:#98A5AA;
+  --blue:#1F4B73; --on-blue:#F4F8FA; --flag:#8E2C22; --amber:#9C6A17; --clear:#3D6B4E;
+  --trace:#39566B;
+  --shadow:rgba(20,30,38,.10);
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0D1316; --surface:#161E22; --surface-2:#1B252A; --inset:#0A0F12;
+    --ink:#E4EBEC; --ink-2:#9DADB4; --ink-3:#6C7D85;
+    --rule:#28343A; --rule-2:#44545C;
+    --blue:#7FB3DD; --on-blue:#0D1316; --flag:#E07567; --amber:#DBA645; --clear:#74B98D;
+    --trace:#89A8BC;
+    --shadow:rgba(0,0,0,.4);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0D1316; --surface:#161E22; --surface-2:#1B252A; --inset:#0A0F12;
+  --ink:#E4EBEC; --ink-2:#9DADB4; --ink-3:#6C7D85;
+  --rule:#28343A; --rule-2:#44545C;
+  --blue:#7FB3DD; --on-blue:#0D1316; --flag:#E07567; --amber:#DBA645; --clear:#74B98D;
+  --trace:#89A8BC;
+  --shadow:rgba(0,0,0,.4);
+}
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{
+  height:100%; margin:0; background:var(--paper); color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:14px; line-height:1.5; -webkit-font-smoothing:antialiased;
+  display:flex; flex-direction:column;
+}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* ---------- header ---------- */
+.masthead{
+  display:flex;align-items:baseline;gap:18px;flex-wrap:wrap;
+  padding:14px 20px 12px; border-bottom:1px solid var(--rule-2); background:var(--surface);
+}
+.wordmark{font-family:"Zilla Slab",Georgia,serif;font-weight:700;font-size:24px;letter-spacing:-.01em;line-height:1}
+.wordmark span{color:var(--blue)}
+.tagline{color:var(--ink-2);font-size:12.5px;max-width:34ch}
+.masthead-right{margin-left:auto;display:flex;align-items:center;gap:14px}
+.meta{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px;color:var(--ink-2);white-space:nowrap}
+.meta b{color:var(--ink);font-weight:500}
+
+.btn{
+  border:1px solid var(--rule-2); background:var(--surface-2); color:var(--ink);
+  padding:7px 14px; border-radius:2px; cursor:pointer; font-size:13px; font-weight:500;
+}
+.btn:hover{background:var(--paper)}
+.btn:disabled{opacity:.42;cursor:not-allowed}
+.btn.primary{background:var(--blue);border-color:var(--blue);color:var(--on-blue)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{border-color:var(--flag);color:var(--flag)}
+.btn.small{padding:4px 9px;font-size:12px}
+.icon-btn{border:1px solid var(--rule);background:none;width:30px;height:30px;border-radius:2px;cursor:pointer;line-height:1}
+
+/* ---------- console grid ---------- */
+.console{
+  flex:1 1 auto; min-height:0; display:grid;
+  grid-template-columns:minmax(0,1.1fr) minmax(330px,.9fr);
+  gap:1px; background:var(--rule-2);
+}
+.pane{background:var(--surface);min-width:0;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+
+/* ---------- feed ---------- */
+.stage{position:relative;flex:1 1 auto;min-height:0;background:var(--inset);overflow:hidden}
+#video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+#overlay{position:absolute;inset:0;width:100%;height:100%}
+.stage-empty{
+  position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;
+  gap:14px;padding:clamp(22px,4vw,54px);background:var(--surface);
+}
+.stage-empty h1{font-family:"Zilla Slab",Georgia,serif;font-weight:600;font-size:clamp(26px,3.4vw,40px);line-height:1.12;margin:0;max-width:20ch}
+.stage-empty p{margin:0;color:var(--ink-2);max-width:56ch}
+.stage-empty ul{margin:2px 0 0;padding-left:18px;color:var(--ink-2);max-width:56ch}
+.stage-empty li{margin-bottom:3px}
+.stage-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px}
+.badge{
+  position:absolute;left:12px;top:12px;display:flex;align-items:center;gap:7px;
+  background:color-mix(in srgb,var(--surface) 88%,transparent);
+  border:1px solid var(--rule-2);border-radius:2px;padding:4px 9px;
+  font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--ink)
+}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--flag)}
+.dot.live{animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35}}
+.stage-note{
+  position:absolute;right:12px;top:12px;font-family:"IBM Plex Mono",monospace;font-size:11px;
+  color:var(--ink-2);background:color-mix(in srgb,var(--surface) 88%,transparent);
+  border:1px solid var(--rule);padding:4px 8px;border-radius:2px
+}
+.calib{
+  position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:10px;background:color-mix(in srgb,var(--inset) 82%,transparent);color:var(--ink);text-align:center;padding:24px
+}
+.calib h2{font-family:"Zilla Slab",serif;font-size:20px;margin:0;font-weight:600}
+.calib p{margin:0;color:var(--ink-2);max-width:40ch}
+.calib .count{font-family:"IBM Plex Mono",monospace;font-size:44px;font-weight:500;color:var(--blue)}
+
+/* ---------- fusion band ---------- */
+.band{border-top:1px solid var(--rule-2);padding:12px 16px 14px;background:var(--surface-2)}
+.band-head{display:flex;align-items:baseline;gap:10px;margin-bottom:9px}
+.band-head h3{font-family:"Zilla Slab",serif;font-size:15px;font-weight:600;margin:0}
+.verdict{font-family:"IBM Plex Mono",monospace;font-size:12px;border:1px solid currentColor;padding:1px 7px;border-radius:2px}
+.score{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:26px;font-weight:500;line-height:1}
+.scale{position:relative;height:26px;border-left:1px solid var(--rule-2);border-right:1px solid var(--rule-2)}
+.scale-track{position:absolute;left:0;right:0;top:11px;height:1px;background:var(--rule-2)}
+.tick{position:absolute;top:6px;width:1px;height:11px;background:var(--rule-2)}
+.tick.major{top:2px;height:19px;background:var(--rule)}
+.needle{position:absolute;top:0;width:2px;height:26px;background:var(--ink);transition:left .18s linear}
+.needle::after{content:"";position:absolute;left:-4px;top:-4px;border:5px solid transparent;border-top-color:var(--ink)}
+.scale-labels{display:flex;justify-content:space-between;font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--ink-3);margin-top:3px}
+
+/* ---------- channels ---------- */
+.pane-head{
+  display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--rule);
+  background:var(--surface-2)
+}
+.pane-head h2{font-family:"Zilla Slab",serif;font-size:14px;font-weight:600;margin:0}
+.pane-head .meta{margin-left:auto}
+.channels{overflow-y:auto;flex:0 0 auto}
+.chan{display:grid;grid-template-columns:118px 1fr 92px;align-items:center;gap:10px;
+  padding:9px 16px;border-bottom:1px solid var(--rule)}
+.chan-name{font-family:"Zilla Slab",serif;font-size:13.5px;font-weight:600;line-height:1.2}
+.chan-sub{font-size:11px;color:var(--ink-3);font-weight:400;font-family:"IBM Plex Sans",sans-serif;display:block}
+.chan canvas{width:100%;height:30px;display:block}
+.chan-read{font-family:"IBM Plex Mono",monospace;font-size:12px;text-align:right;color:var(--ink-2);line-height:1.35}
+.chan-read b{display:block;font-weight:500;font-size:12.5px;color:var(--ink)}
+.chan[data-state="flag"] .chan-read b{color:var(--flag)}
+.chan[data-state="watch"] .chan-read b{color:var(--amber)}
+.chan[data-state="ok"] .chan-read b{color:var(--clear)}
+.chan[data-state="off"]{opacity:.62}
+
+/* ---------- ledger ---------- */
+.ledger{flex:1 1 auto;min-height:120px;overflow-y:auto;background:var(--surface)}
+.entry{display:grid;grid-template-columns:52px 82px 1fr 44px;gap:8px;padding:7px 16px;
+  border-bottom:1px solid var(--rule);font-size:12.5px;align-items:baseline}
+.entry:first-child{background:color-mix(in srgb,var(--blue) 7%,transparent)}
+.entry .t,.entry .d{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--ink-3)}
+.entry .d{text-align:right;color:var(--flag)}
+.entry .c{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--blue)}
+.entry .m{color:var(--ink-2)}
+.empty-note{padding:16px;color:var(--ink-3);font-size:12.5px}
+
+/* ---------- footer / harness ---------- */
+.footer{border-top:1px solid var(--rule-2);background:var(--surface-2);padding:9px 16px;
+  display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.footer .meta{margin-right:auto}
+details.notes{border-top:1px solid var(--rule-2);background:var(--surface)}
+details.notes summary{padding:9px 20px;cursor:pointer;font-size:12.5px;color:var(--ink-2);list-style:none}
+details.notes summary::-webkit-details-marker{display:none}
+details.notes summary::before{content:"+ ";font-family:"IBM Plex Mono",monospace;color:var(--blue)}
+details.notes[open] summary::before{content:"− "}
+.notes-body{padding:2px 20px 18px;display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px}
+.notes-body h4{font-family:"Zilla Slab",serif;font-size:13px;margin:0 0 5px;font-weight:600}
+.notes-body p,.notes-body li{font-size:12.5px;color:var(--ink-2);margin:0 0 5px}
+.notes-body ul{margin:0;padding-left:16px}
+code{font-family:"IBM Plex Mono",monospace;font-size:11.5px;background:var(--surface-2);
+  border:1px solid var(--rule);padding:0 3px;border-radius:2px}
+
+/* ---------- report ---------- */
+.sheet{position:fixed;inset:0;background:color-mix(in srgb,var(--paper) 92%,transparent);
+  display:flex;align-items:flex-start;justify-content:center;padding:4vh 16px;overflow-y:auto;z-index:20}
+.sheet-inner{background:var(--surface);border:1px solid var(--rule-2);max-width:620px;width:100%;
+  box-shadow:0 12px 40px var(--shadow)}
+.sheet-head{padding:18px 22px 12px;border-bottom:1px solid var(--rule-2)}
+.sheet-head h2{font-family:"Zilla Slab",serif;font-size:21px;margin:0 0 3px;font-weight:600}
+.sheet-head p{margin:0;font-size:12.5px;color:var(--ink-2)}
+.sheet pre{margin:0;padding:18px 22px;font-family:"IBM Plex Mono",monospace;font-size:12px;
+  white-space:pre-wrap;line-height:1.65;color:var(--ink)}
+.sheet-foot{padding:12px 22px 18px;display:flex;gap:10px;border-top:1px solid var(--rule)}
+.hidden{display:none!important}
+
+@media (max-width:900px){
+  .console{grid-template-columns:1fr;grid-auto-rows:min-content}
+  body{height:auto;min-height:100%}
+  .stage{min-height:56vw}
+  .ledger{max-height:260px}
+  .masthead{padding:12px 14px}
+  .chan{grid-template-columns:104px 1fr 78px;padding:8px 12px}
+}
+</style>
+<style>
+/* local-build additions */
+.loadbar{display:flex;align-items:center;gap:10px;padding:7px 20px;border-bottom:1px solid var(--rule);
+  background:var(--surface-2);font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--ink-2)}
+.loadbar .pill{border:1px solid var(--rule-2);padding:1px 7px;border-radius:2px}
+.loadbar .pill.ok{color:var(--clear);border-color:var(--clear)}
+.loadbar .pill.err{color:var(--flag);border-color:var(--flag)}
+.loadbar .pill.wait{color:var(--amber);border-color:var(--amber)}
+.chan{grid-template-columns:118px 1fr 100px}
+@media (max-width:900px){.chan{grid-template-columns:104px 1fr 86px}}
+.gazebox{position:absolute;right:12px;bottom:12px;width:104px;height:78px;border:1px solid var(--rule-2);
+  background:color-mix(in srgb,var(--surface) 88%,transparent);border-radius:2px}
+.gazebox canvas{width:100%;height:100%;display:block}
+.gazecap{position:absolute;right:12px;bottom:92px;font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--ink-2)}
+
+/* ---- refresh: paper texture, marks, ledger rule, tactile detail ---- */
+body{
+  background:
+    radial-gradient(ellipse 900px 520px at 6% -12%, color-mix(in srgb, var(--ink) 4%, transparent), transparent 62%),
+    repeating-linear-gradient(180deg, color-mix(in srgb, var(--ink) 2.2%, transparent) 0px, transparent 1px, transparent 3px),
+    var(--paper);
+}
+.masthead{position:relative}
+.masthead::after{content:"";position:absolute;left:0;right:0;bottom:-4px;height:1px;background:var(--rule);opacity:.55}
+.wordmark{display:flex;align-items:center;gap:8px}
+.wordmark .mark{width:18px;height:18px;flex:none;color:var(--blue)}
+.wordmark .mark path{stroke:currentColor;stroke-width:2.4;fill:none;stroke-linecap:round;stroke-linejoin:round}
+
+.meta-strip{display:flex;align-items:center}
+.meta-chip{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-2);padding:0 12px;border-left:1px solid var(--rule);white-space:nowrap}
+.meta-chip:first-child{border-left:none;padding-left:0}
+.meta-chip b{color:var(--ink);font-weight:500}
+
+.verdict{position:relative;border:2px solid currentColor;border-radius:3px;padding:2px 10px 3px;
+  transform:rotate(-3deg);font-family:"IBM Plex Mono",monospace;letter-spacing:.03em}
+.verdict::after{content:"";position:absolute;inset:2px;border:1px solid currentColor;opacity:.35;border-radius:2px}
+
+.empty-mark{position:absolute;right:4%;top:52%;transform:translateY(-50%) rotate(-8deg);
+  font-family:"Zilla Slab",serif;font-size:min(34vw,300px);line-height:1;color:var(--ink);
+  opacity:.045;pointer-events:none;user-select:none}
+
+.console{gap:0;background:var(--paper)}
+.pane{position:relative}
+.pane:first-child{border-right:1px dashed var(--rule-2)}
+@media (max-width:900px){ .pane:first-child{border-right:none;border-bottom:1px dashed var(--rule-2)} }
+
+.ledger{background-image:linear-gradient(to right, transparent 70px,
+  color-mix(in srgb, var(--flag) 26%, transparent) 70px,
+  color-mix(in srgb, var(--flag) 26%, transparent) 71px, transparent 71px)}
+.entry:hover{background:color-mix(in srgb, var(--blue) 6%, transparent)}
+.chan:hover{background:color-mix(in srgb, var(--ink) 3%, transparent)}
+
+.ledger::-webkit-scrollbar,.channels::-webkit-scrollbar{width:8px}
+.ledger::-webkit-scrollbar-track,.channels::-webkit-scrollbar-track{background:transparent}
+.ledger::-webkit-scrollbar-thumb,.channels::-webkit-scrollbar-thumb{background:var(--rule-2);border-radius:4px}
+
+.btn{transition:transform .08s ease, background .12s ease}
+.btn:active{transform:translateY(1px)}
+.calib .count{font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="wordmark"><svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13.2 9.5 18.5 20 6"/></svg>Exam<span>Nexa</span></div>
+  <div class="tagline">Local build — real face mesh, iris gaze, and object detection.</div>
+  <div class="masthead-right">
+    <div class="meta-strip"><span class="meta-chip">session <b id="sid">—</b></span><span class="meta-chip">elapsed <b id="clock">00:00</b></span></div>
+    <button class="icon-btn" id="themeBtn" title="Switch between light and dark" aria-label="Switch theme">◐</button>
+  </div>
+</header>
+
+<div class="loadbar">
+  <span>models</span>
+  <span class="pill wait" id="pillFace">face mesh · loading</span>
+  <span class="pill wait" id="pillObj">object detector · loading</span>
+  <span id="loadNote">First load pulls about 12 MB and is cached afterwards.</span>
+</div>
+
+<main class="console">
+  <section class="pane">
+    <div class="stage" id="stage">
+      <video id="video" playsinline muted autoplay></video>
+      <canvas id="overlay"></canvas>
+
+      <div class="badge hidden" id="liveBadge"><span class="dot live"></span> recording nothing · analysing live</div>
+      <div class="stage-note hidden" id="fpsNote">—</div>
+
+      <div class="gazecap hidden" id="gazeCap">gaze target</div>
+      <div class="gazebox hidden" id="gazeBox"><canvas id="gazeCv"></canvas></div>
+
+      <div class="calib hidden" id="calib">
+        <div class="count" id="calibCount">8</div>
+        <h2>Look at the centre of the screen and hold still</h2>
+        <p>ExamNexa is recording your neutral head pose, your resting eye position, and the room's noise floor so none of them are flagged later.</p>
+      </div>
+
+      <div class="stage-empty" id="empty">
+        <div class="empty-mark" aria-hidden="true">&#10003;</div>
+        <h1>Sit the exam. ExamNexa watches the room, not the answers.</h1>
+        <p>This build runs a 478-point face mesh with iris tracking and a live object detector on your own machine. Head pose comes from the face transformation matrix, gaze from the iris landmarks, and prohibited items from a COCO detector scanning the desk four times a second.</p>
+        <ul>
+          <li>No video or audio is recorded, stored, or uploaded.</li>
+          <li>Model files download once from a CDN; frames never leave the browser.</li>
+          <li>Close the tab and everything in memory is gone.</li>
+        </ul>
+        <div class="stage-actions">
+          <button class="btn primary" id="startBtn" disabled>Loading models…</button>
+          <span class="meta" id="permNote">Camera and microphone permission required</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="band">
+      <div class="band-head">
+        <h3>Fused integrity score</h3>
+        <span class="verdict" id="verdict" style="color:var(--ink-3)">standby</span>
+        <span class="score" id="scoreVal">—</span>
+      </div>
+      <div class="scale" id="scale"><div class="scale-track"></div><div class="needle" id="needle" style="left:0%"></div></div>
+      <div class="scale-labels">
+        <span>0 clear</span><span>20 watch</span><span>45 flag</span><span>70 halt</span><span>100</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="pane">
+    <div class="pane-head">
+      <h2>Detection channels</h2>
+      <span class="meta" id="rateNote">idle</span>
+    </div>
+
+    <div class="channels" id="channels">
+      <div class="chan" data-ch="face" data-state="off">
+        <div class="chan-name">Face mesh<span class="chan-sub">478 landmarks, face count</span></div>
+        <canvas></canvas><div class="chan-read"><b>—</b><span>waiting</span></div>
+      </div>
+      <div class="chan" data-ch="gaze" data-state="off">
+        <div class="chan-name">Eye gaze<span class="chan-sub">iris direction, blink</span></div>
+        <canvas></canvas><div class="chan-read"><b>—</b><span>waiting</span></div>
+      </div>
+      <div class="chan" data-ch="pose" data-state="off">
+        <div class="chan-name">Head pose<span class="chan-sub">yaw / pitch / roll</span></div>
+        <canvas></canvas><div class="chan-read"><b>—</b><span>waiting</span></div>
+      </div>
+      <div class="chan" data-ch="object" data-state="off">
+        <div class="chan-name">Prohibited objects<span class="chan-sub">phone, notes, screens</span></div>
+        <canvas></canvas><div class="chan-read"><b>—</b><span>waiting</span></div>
+      </div>
+      <div class="chan" data-ch="browser" data-state="off">
+        <div class="chan-name">Browser focus<span class="chan-sub">tab, window, clipboard</span></div>
+        <canvas></canvas><div class="chan-read"><b>—</b><span>waiting</span></div>
+      </div>
+      <div class="chan" data-ch="audio" data-state="off">
+        <div class="chan-name">Voice activity<span class="chan-sub">RMS level and voicing</span></div>
+        <canvas></canvas><div class="chan-read"><b>—</b><span>waiting</span></div>
+      </div>
+      <div class="chan" data-ch="fusion" data-state="off">
+        <div class="chan-name">Fusion<span class="chan-sub">weighted score, 0–100</span></div>
+        <canvas></canvas><div class="chan-read"><b>—</b><span>waiting</span></div>
+      </div>
+    </div>
+
+    <div class="pane-head" style="border-top:1px solid var(--rule-2)">
+      <h2>Event ledger</h2><span class="meta" id="evCount">0 events</span>
+    </div>
+    <div class="ledger" id="ledger">
+      <div class="empty-note">Flagged events appear here with the channel that raised them and how much they moved the score.</div>
+    </div>
+
+    <div class="footer">
+      <span class="meta" id="objNote">detector idle</span>
+      <button class="btn small" id="jsonBtn" disabled>Download JSON</button>
+      <button class="btn small danger" id="endBtn" disabled>End session</button>
+    </div>
+  </section>
+</main>
+
+<details class="notes">
+  <summary>What each channel actually measures in this build</summary>
+  <div class="notes-body">
+    <div>
+      <h4>Eye gaze</h4>
+      <p>The face mesh returns iris landmarks 468–477 plus ARKit-style blendshapes. Horizontal gaze is <code>(lookOutLeft + lookInRight)/2 − (lookOutRight + lookInLeft)/2</code>, vertical is the up minus down pair, both measured against the neutral position captured during calibration. Blinks above 0.5 suppress the reading so a blink is never read as a glance. Eyes off centre for more than 1.2 s raises an event — this fires even when your head never moves, which is the case the old geometric version could not see at all.</p>
+    </div>
+    <div>
+      <h4>Head pose</h4>
+      <p>Real yaw, pitch and roll in degrees from <code>facialTransformationMatrixes</code>, decomposed in YXZ order and offset by your calibrated neutral. No longer inferred from skin-mask asymmetry.</p>
+    </div>
+    <div>
+      <h4>Prohibited objects</h4>
+      <p>COCO-SSD with the lite MobileNet v2 base, run on a 250 ms interval off the main detection loop. Watched classes and their severity: cell phone 0.95, laptop 0.85, tv or monitor 0.85, book 0.70, remote 0.55, and any second person 0.95. Anything under 0.55 confidence is discarded. Swap in YOLOv8-Nano by replacing the loader with ONNX Runtime Web and mapping its class indices onto the same table.</p>
+    </div>
+  </div>
+</details>
+
+<div class="sheet hidden" id="sheet">
+  <div class="sheet-inner">
+    <div class="sheet-head">
+      <h2>Session report</h2>
+      <p>Signed summary for the invigilator. No media is attached because none was captured.</p>
+    </div>
+    <pre id="reportText"></pre>
+    <div class="sheet-foot">
+      <button class="btn primary" id="copyBtn">Copy report</button>
+      <button class="btn" id="jsonBtn2">Download JSON</button>
+      <button class="btn" id="closeSheet">Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
+<script type="module">
+"use strict";
+const $ = s => document.querySelector(s);
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const now=()=>performance.now();
+const pad=n=>String(n).padStart(2,"0");
+const fmt=ms=>{const s=Math.floor(ms/1000);return pad(Math.floor(s/60))+":"+pad(s%60);};
+
+/* ---------------- state ---------------- */
+const S={
+  phase:"idle", t0:0, sid:"", stream:null, video:null,
+  faceLM:null, objModel:null, lastObjRun:0, objBusy:false,
+  base:{yaw:0,pitch:0,roll:0,gx:0,gy:0,ready:false},
+  cal:{n:0,yaw:0,pitch:0,roll:0,gx:0,gy:0},
+  face:{present:false,count:0,lm:null,box:null,absentSince:0,logged:false,multiLogged:false},
+  gaze:{x:0,y:0,blink:0,offSince:0,logged:false,dir:""},
+  pose:{yaw:0,pitch:0,roll:0,offSince:0,logged:false},
+  obj:{items:[],seen:{},lastLog:{}},
+  br:{focused:true,hiddenSince:0,switches:0,blurTotal:0},
+  audio:{ctx:null,analyser:null,buf:null,floor:-70,voiced:false,hang:0,segStart:0,db:-90,zcr:0},
+  risk:{face:0,gaze:0,pose:0,object:0,browser:0,audio:0},
+  load:0,score:0,peak:0,level:"clear",levelPending:null,levelSince:0,
+  events:[],counts:{face:0,gaze:0,pose:0,object:0,browser:0,audio:0},
+  traces:{},fps:0,frames:0,fpsT:0,lastTick:0
+};
+const WEIGHTS={object:.22, gaze:.18, browser:.18, face:.16, pose:.14, audio:.12};
+const CH=["face","gaze","pose","object","browser","audio","fusion"];
+CH.forEach(c=>S.traces[c]=new Array(150).fill(0));
+
+const PROHIBITED={ "cell phone":{sev:.95,label:"mobile phone"}, "laptop":{sev:.85,label:"laptop"},
+  "tv":{sev:.85,label:"second screen"}, "book":{sev:.70,label:"book or notes"},
+  "remote":{sev:.55,label:"handheld device"}, "person":{sev:.95,label:"additional person"} };
+
+/* ---------------- theme ---------------- */
+let COL={};
+function readColors(){
+  const cs=getComputedStyle(document.documentElement), g=n=>cs.getPropertyValue(n).trim();
+  COL={ink:g("--ink"),ink3:g("--ink-3"),rule:g("--rule"),blue:g("--blue"),flag:g("--flag"),
+       amber:g("--amber"),clear:g("--clear"),trace:g("--trace"),surface:g("--surface")};
+}
+readColors();
+matchMedia("(prefers-color-scheme:dark)").addEventListener("change",readColors);
+try{const sv=localStorage.getItem("examnexa.theme"); if(sv)document.documentElement.setAttribute("data-theme",sv);}catch(e){}
+$("#themeBtn").addEventListener("click",()=>{
+  const cur=document.documentElement.getAttribute("data-theme");
+  const dark=cur?cur==="dark":matchMedia("(prefers-color-scheme:dark)").matches;
+  const nx=dark?"light":"dark";
+  document.documentElement.setAttribute("data-theme",nx);
+  try{localStorage.setItem("examnexa.theme",nx);}catch(e){}
+  readColors();
+});
+
+S.sid=Math.floor(1000+Math.random()*9000)+"-"+"ABCDEFGHJKLMNPQRSTUVWXYZ"[Math.floor(Math.random()*24)];
+$("#sid").textContent=S.sid;
+(function(){const sc=$("#scale");for(let v=0;v<=100;v+=5){const d=document.createElement("div");
+  d.className="tick"+(v%20===0?" major":"");d.style.left=v+"%";sc.appendChild(d);}})();
+
+/* ---------------- ledger ---------------- */
+function logEvent(ch,msg,delta){
+  const t=S.t0?now()-S.t0:0;
+  S.events.push({t,ch,msg,delta});
+  if(S.counts[ch]!==undefined)S.counts[ch]++;
+  S.load=clamp(S.load+delta,0,100);
+  const led=$("#ledger"); const n=led.querySelector(".empty-note"); if(n)n.remove();
+  const row=document.createElement("div"); row.className="entry";
+  row.innerHTML=`<span class="t">${fmt(t)}</span><span class="c">${ch}</span><span class="m"></span><span class="d">+${delta}</span>`;
+  row.querySelector(".m").textContent=msg;
+  led.insertBefore(row,led.firstChild);
+  while(led.children.length>60)led.removeChild(led.lastChild);
+  $("#evCount").textContent=S.events.length+(S.events.length===1?" event":" events");
+}
+
+/* ---------------- model loading ---------------- */
+let FaceLandmarker=null;
+async function loadModels(){
+  // face mesh
+  try{
+    let vis;
+    try{ vis=await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14"); }
+    catch(e){ vis=await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs"); }
+    FaceLandmarker=vis.FaceLandmarker;
+    const fileset=await vis.FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+    S.faceLM=await vis.FaceLandmarker.createFromOptions(fileset,{
+      baseOptions:{modelAssetPath:"https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",delegate:"GPU"},
+      runningMode:"VIDEO", numFaces:3,
+      outputFaceBlendshapes:true, outputFacialTransformationMatrixes:true
+    });
+    setPill("#pillFace","face mesh · ready","ok");
+  }catch(e){
+    console.error(e); setPill("#pillFace","face mesh · failed","err");
+  }
+  // object detector
+  try{
+    if(!window.cocoSsd) throw new Error("coco-ssd script did not load");
+    S.objModel=await window.cocoSsd.load({base:"lite_mobilenet_v2"});
+    setPill("#pillObj","object detector · ready","ok");
+  }catch(e){
+    console.error(e); setPill("#pillObj","object detector · failed","err");
+  }
+  const b=$("#startBtn");
+  if(S.faceLM||S.objModel){ b.disabled=false; b.textContent="Start session"; }
+  else { b.textContent="Models unavailable"; $("#loadNote").textContent="No connection to the CDN. Check the network and reload."; }
+  if(S.faceLM&&S.objModel) $("#loadNote").textContent="Both models cached locally. Nothing is uploaded during the session.";
+}
+function setPill(sel,text,cls){ const el=$(sel); el.textContent=text; el.className="pill "+cls; }
+
+/* ---------------- browser channel ---------------- */
+document.addEventListener("visibilitychange",()=>{
+  if(S.phase!=="monitoring")return;
+  if(document.hidden){S.br.focused=false;S.br.hiddenSince=now();}
+  else if(S.br.hiddenSince){
+    const d=(now()-S.br.hiddenSince)/1000;
+    S.br.focused=true;S.br.switches++;S.br.blurTotal+=d;S.br.hiddenSince=0;
+    logEvent("browser",`exam tab hidden for ${d.toFixed(1)}s`,Math.round(clamp(8+d*4,8,26)));
+  }
+});
+window.addEventListener("blur",()=>{if(S.phase==="monitoring"&&!document.hidden){S.br.focused=false;S.br.hiddenSince=now();}});
+window.addEventListener("focus",()=>{
+  if(S.phase!=="monitoring"||!S.br.hiddenSince)return;
+  const d=(now()-S.br.hiddenSince)/1000; S.br.focused=true; S.br.hiddenSince=0;
+  if(d>0.6){S.br.switches++;S.br.blurTotal+=d;logEvent("browser",`window lost focus for ${d.toFixed(1)}s`,Math.round(clamp(6+d*3,6,20)));}
+});
+["copy","cut","paste"].forEach(t=>document.addEventListener(t,()=>{
+  if(S.phase==="monitoring")logEvent("browser",`clipboard ${t} in exam window`,14);}));
+window.addEventListener("keydown",e=>{
+  if(S.phase!=="monitoring")return;
+  const k=e.key.toLowerCase();
+  if((e.metaKey||e.ctrlKey)&&(k==="t"||k==="n"||k==="f"))logEvent("browser",`shortcut ${e.ctrlKey?"ctrl":"cmd"}+${k} pressed`,9);
+});
+
+/* ---------------- audio ---------------- */
+async function initAudio(stream){
+  const AC=window.AudioContext||window.webkitAudioContext; if(!AC)return false;
+  const ctx=new AC(); if(ctx.state==="suspended")await ctx.resume();
+  const an=ctx.createAnalyser(); an.fftSize=1024; an.smoothingTimeConstant=.2;
+  ctx.createMediaStreamSource(stream).connect(an);
+  S.audio.ctx=ctx;S.audio.analyser=an;S.audio.buf=new Float32Array(an.fftSize);
+  return true;
+}
+function stepAudio(){
+  const A=S.audio; if(!A.analyser)return;
+  A.analyser.getFloatTimeDomainData(A.buf);
+  let sum=0,zc=0,prev=A.buf[0];
+  for(let i=0;i<A.buf.length;i++){const v=A.buf[i];sum+=v*v;if((v>=0)!==(prev>=0))zc++;prev=v;}
+  const db=20*Math.log10(Math.max(Math.sqrt(sum/A.buf.length),1e-7));
+  A.db=db; A.zcr=zc/A.buf.length;
+  if(db<A.floor)A.floor=A.floor*.90+db*.10; else A.floor=A.floor*.9985+db*.0015;
+  A.floor=clamp(A.floor,-95,-25);
+  const over=db-A.floor, speechLike=A.zcr>.02&&A.zcr<.30, hit=over>9&&speechLike&&db>-62;
+  if(hit){A.hang=now()+300;if(!A.voiced){A.voiced=true;A.segStart=now();}}
+  else if(A.voiced&&now()>A.hang){
+    const d=(now()-A.segStart)/1000; A.voiced=false;
+    if(d>.9&&S.phase==="monitoring")logEvent("audio",`sustained voice activity, ${d.toFixed(1)}s`,Math.round(clamp(5+d*3,5,18)));
+  }
+  S.risk.audio=A.voiced?clamp(over/26,.25,1):clamp(over/40,0,.25);
+}
+
+/* ---------------- face / gaze / pose ---------------- */
+function eulerFromMatrix(m){
+  // column-major 4x4; R = Ry * Rx * Rz  ->  YXZ decomposition
+  const r=(i,j)=>m[j*4+i];
+  const pitch=Math.asin(clamp(-r(1,2),-1,1));
+  let yaw,roll;
+  if(Math.abs(r(1,2))<0.9999){ yaw=Math.atan2(r(0,2),r(2,2)); roll=Math.atan2(r(1,0),r(1,1)); }
+  else { yaw=Math.atan2(-r(2,0),r(0,0)); roll=0; }
+  const D=180/Math.PI;
+  return {yaw:yaw*D, pitch:pitch*D, roll:roll*D};
+}
+function blendMap(cats){ const m={}; for(const c of cats) m[c.categoryName]=c.score; return m; }
+
+function stepFace(ts){
+  if(!S.faceLM||!S.video||S.video.readyState<2) return;
+  let res;
+  try{ res=S.faceLM.detectForVideo(S.video,ts); }catch(e){ return; }
+  const F=S.face,G=S.gaze,P=S.pose;
+  const faces=res.faceLandmarks||[];
+  F.count=faces.length;
+  F.present=faces.length>0;
+
+  if(!F.present){
+    F.lm=null;F.box=null;
+    if(!F.absentSince)F.absentSince=now();
+    const d=(now()-F.absentSince)/1000;
+    S.risk.face=clamp(.3+d/6,.3,1);
+    if(d>2.5&&!F.logged&&S.phase==="monitoring"){F.logged=true;logEvent("face","candidate left the camera view",20);}
+    S.risk.gaze*=.9; S.risk.pose*=.9;
+    return;
+  }
+  if(F.logged&&S.phase==="monitoring")logEvent("face","candidate returned to view",0);
+  F.absentSince=0;F.logged=false;
+
+  const lm=faces[0]; F.lm=lm;
+  let x0=1,x1=0,y0=1,y1=0;
+  for(const p of lm){ if(p.x<x0)x0=p.x; if(p.x>x1)x1=p.x; if(p.y<y0)y0=p.y; if(p.y>y1)y1=p.y; }
+  F.box={x0,x1,y0,y1};
+
+  if(F.count>=2){
+    S.risk.face=.85;
+    if(!F.multiLogged&&S.phase==="monitoring"){F.multiLogged=true;logEvent("face",`${F.count} faces in frame`,26);}
+  }else{ F.multiLogged=false; S.risk.face=0; }
+
+  // ---- head pose ----
+  const mats=res.facialTransformationMatrixes;
+  if(mats&&mats.length){
+    const e=eulerFromMatrix(mats[0].data);
+    const yaw=e.yaw-S.base.yaw, pitch=e.pitch-S.base.pitch, roll=e.roll-S.base.roll;
+    P.yaw=P.yaw*.6+yaw*.4; P.pitch=P.pitch*.6+pitch*.4; P.roll=P.roll*.6+roll*.4;
+    P.raw=e;
+  }
+  const poseOff=Math.abs(P.yaw)>25||Math.abs(P.pitch)>20;
+  if(poseOff){
+    if(!P.offSince)P.offSince=now();
+    const d=(now()-P.offSince)/1000;
+    if(d>1.3&&!P.logged&&S.phase==="monitoring"){
+      P.logged=true;
+      const dir=Math.abs(P.yaw)>Math.abs(P.pitch)?(P.yaw>0?"right":"left"):(P.pitch>0?"up":"down");
+      logEvent("pose",`head turned ${dir} for ${d.toFixed(1)}s`,13);
+    }
+  }else{P.offSince=0;P.logged=false;}
+  S.risk.pose=clamp(Math.max(Math.abs(P.yaw)/40,Math.abs(P.pitch)/34),0,1);
+
+  // ---- eye gaze ----
+  const bs=res.faceBlendshapes;
+  if(bs&&bs.length){
+    const b=blendMap(bs[0].categories);
+    const v=k=>b[k]||0;
+    G.blink=Math.max(v("eyeBlinkLeft"),v("eyeBlinkRight"));
+    const gxRaw=((v("eyeLookOutLeft")+v("eyeLookInRight"))/2)-((v("eyeLookOutRight")+v("eyeLookInLeft"))/2);
+    const gyRaw=((v("eyeLookUpLeft")+v("eyeLookUpRight"))/2)-((v("eyeLookDownLeft")+v("eyeLookDownRight"))/2);
+    if(G.blink<0.5){
+      G.x=G.x*.65+(gxRaw-S.base.gx)*.35;
+      G.y=G.y*.65+(gyRaw-S.base.gy)*.35;
+    }
+    G.rawx=gxRaw; G.rawy=gyRaw;
+  }
+  const mag=Math.max(Math.abs(G.x)/.42,Math.abs(G.y)/.38);
+  const gazeOff=mag>1&&G.blink<0.5;
+  if(gazeOff){
+    if(!G.offSince)G.offSince=now();
+    const d=(now()-G.offSince)/1000;
+    G.dir=Math.abs(G.x)/.42>Math.abs(G.y)/.38?(G.x>0?"left":"right"):(G.y>0?"up":"down");
+    if(d>1.2&&!G.logged&&S.phase==="monitoring"){
+      G.logged=true;
+      logEvent("gaze",`eyes off screen, looking ${G.dir}, ${d.toFixed(1)}s`,15);
+    }
+  }else{G.offSince=0;G.logged=false;G.dir="";}
+  S.risk.gaze=clamp(mag,0,1)*(G.blink>0.5?.2:1);
+}
+
+/* ---------------- object detection ---------------- */
+async function stepObjects(){
+  if(!S.objModel||S.objBusy||!S.video||S.video.readyState<2)return;
+  if(now()-S.lastObjRun<250)return;
+  S.objBusy=true; S.lastObjRun=now();
+  let preds=[];
+  try{ preds=await S.objModel.detect(S.video,8,0.5); }catch(e){ }
+  S.objBusy=false;
+  if(S.phase==="idle"||S.phase==="ended")return;
+
+  const people=preds.filter(p=>p.class==="person"&&p.score>=.55).length;
+  const items=[];
+  for(const p of preds){
+    if(p.score<.55)continue;
+    const rule=PROHIBITED[p.class];
+    if(!rule)continue;
+    if(p.class==="person"){ if(people<2)continue; }
+    items.push({label:rule.label,cls:p.class,sev:rule.sev,conf:p.score,bbox:p.bbox});
+  }
+  items.sort((a,b)=>b.sev*b.conf-a.sev*a.conf);
+  S.obj.items=items;
+  S.risk.object=items.length?clamp(items[0].sev*items[0].conf*1.1,0,1):0;
+
+  if(S.phase==="monitoring"){
+    for(const it of items){
+      const last=S.obj.lastLog[it.cls]||0;
+      if(now()-last>6000){
+        S.obj.lastLog[it.cls]=now();
+        logEvent("object",`${it.label} detected, ${(it.conf*100).toFixed(0)}% confidence`,Math.round(it.sev*32));
+      }
+    }
+  }
+  $("#objNote").textContent=items.length?`${items.length} flagged object${items.length>1?"s":""} in frame`:`scanning · ${preds.length} object${preds.length===1?"":"s"} seen`;
+}
+
+/* ---------------- fusion ---------------- */
+function fuse(){
+  let num=0,den=0;
+  for(const k in WEIGHTS){num+=WEIGHTS[k]*S.risk[k];den+=WEIGHTS[k];}
+  const raw=(num/den)*100;
+  S.load*=.994;
+  const target=clamp(raw*.62+S.load*.55,0,100);
+  S.score+=(target-S.score)*.09; S.score=clamp(S.score,0,100);
+  if(S.score>S.peak)S.peak=S.score;
+  const lv=S.score>=70?"halt":S.score>=45?"flag":S.score>=20?"watch":"clear";
+  if(lv!==S.level){
+    const order={clear:0,watch:1,flag:2,halt:3}, bounds={clear:0,watch:20,flag:45,halt:70};
+    const esc=order[lv]>order[S.level];
+    if(esc||S.score<bounds[S.level]-5){
+      if(S.levelPending!==lv){S.levelPending=lv;S.levelSince=now();}
+      else if(now()-S.levelSince>(esc?900:1600)){S.level=lv;S.levelPending=null;}
+    }
+  }else S.levelPending=null;
+}
+
+/* ---------------- rendering ---------------- */
+const VERDICT={clear:{t:"clear",c:"var(--clear)"},watch:{t:"watch",c:"var(--amber)"},
+  flag:{t:"flag for review",c:"var(--flag)"},halt:{t:"halt recommended",c:"var(--flag)"}};
+function setChan(ch,state,big,small){
+  const el=document.querySelector(`.chan[data-ch="${ch}"]`);
+  el.dataset.state=state;
+  const rd=el.querySelector(".chan-read");
+  rd.querySelector("b").textContent=big; rd.querySelector("span").textContent=small;
+}
+function renderBand(){
+  $("#scoreVal").textContent=S.phase==="monitoring"?S.score.toFixed(0):"—";
+  $("#needle").style.left=S.score+"%";
+  const el=$("#verdict");
+  if(S.phase==="monitoring"){const v=VERDICT[S.level];el.textContent=v.t;el.style.color=v.c;}
+  else{el.textContent="standby";el.style.color="var(--ink-3)";}
+}
+function renderChannels(){
+  const F=S.face,G=S.gaze,P=S.pose,A=S.audio,B=S.br,O=S.obj;
+  if(!S.faceLM) setChan("face","off","—","model unavailable");
+  else if(!F.present) setChan("face","flag","absent","no face detected");
+  else if(F.count>=2) setChan("face","flag",F.count+" faces","multiple people");
+  else setChan("face","ok","1 face","478 landmarks");
+
+  if(!F.present) setChan("gaze","off","—","no eyes visible");
+  else if(G.blink>0.5) setChan("gaze","ok","blink","reading suppressed");
+  else{
+    const m=Math.max(Math.abs(G.x)/.42,Math.abs(G.y)/.38);
+    setChan("gaze",m>1?"flag":m>.62?"watch":"ok",
+      `${G.x>0?"+":""}${G.x.toFixed(2)} / ${G.y>0?"+":""}${G.y.toFixed(2)}`,
+      G.dir?("looking "+G.dir):"on screen");
+  }
+
+  if(!F.present) setChan("pose","off","—","no reference");
+  else{
+    const st=Math.abs(P.yaw)>25||Math.abs(P.pitch)>20?"flag":(Math.abs(P.yaw)>15?"watch":"ok");
+    setChan("pose",st,`${P.yaw>0?"+":""}${P.yaw.toFixed(0)}° / ${P.pitch>0?"+":""}${P.pitch.toFixed(0)}°`,`roll ${P.roll.toFixed(0)}°`);
+  }
+
+  if(!S.objModel) setChan("object","off","—","model unavailable");
+  else if(O.items.length) setChan("object","flag",O.items[0].label,(O.items[0].conf*100).toFixed(0)+"% confidence");
+  else setChan("object","ok","clear","desk scanning");
+
+  if(!B.focused) setChan("browser","flag","away","exam tab not in front");
+  else setChan("browser","ok","focused",B.switches+" switch"+(B.switches===1?"":"es"));
+
+  if(A.analyser) setChan("audio",A.voiced?"watch":"ok",A.db.toFixed(0)+" dB",
+    A.voiced?`voice, +${(A.db-A.floor).toFixed(0)} over floor`:"floor "+A.floor.toFixed(0)+" dB");
+
+  setChan("fusion",S.level==="clear"?"ok":(S.level==="watch"?"watch":"flag"),S.score.toFixed(0),VERDICT[S.level].t);
+}
+function pushTraces(){
+  ["face","gaze","pose","object","browser","audio"].forEach(k=>{S.traces[k].push(S.risk[k]);S.traces[k].shift();});
+  S.traces.fusion.push(S.score/100); S.traces.fusion.shift();
+}
+function drawTraces(){
+  document.querySelectorAll(".chan").forEach(el=>{
+    const ch=el.dataset.ch,cv=el.querySelector("canvas"),r=cv.getBoundingClientRect();
+    const dpr=Math.min(window.devicePixelRatio||1,2);
+    const w=Math.max(40,Math.round(r.width)),h=Math.round(r.height)||30;
+    if(cv.width!==w*dpr||cv.height!==h*dpr){cv.width=w*dpr;cv.height=h*dpr;}
+    const c=cv.getContext("2d"); c.setTransform(dpr,0,0,dpr,0,0); c.clearRect(0,0,w,h);
+    c.strokeStyle=COL.rule;c.lineWidth=1;
+    c.beginPath();c.moveTo(0,h-.5);c.lineTo(w,h-.5);c.stroke();
+    c.globalAlpha=.55;c.beginPath();c.moveTo(0,Math.round(h*.5)+.5);c.lineTo(w,Math.round(h*.5)+.5);c.stroke();c.globalAlpha=1;
+    const arr=S.traces[ch],n=arr.length,step=w/(n-1),st=el.dataset.state;
+    const col=st==="flag"?COL.flag:st==="watch"?COL.amber:ch==="fusion"?COL.blue:COL.trace;
+    c.beginPath();c.moveTo(0,h);
+    for(let i=0;i<n;i++)c.lineTo(i*step,h-clamp(arr[i],0,1)*(h-2));
+    c.lineTo(w,h);c.closePath();c.fillStyle=col;c.globalAlpha=.13;c.fill();c.globalAlpha=1;
+    c.beginPath();
+    for(let i=0;i<n;i++){const x=i*step,y=h-clamp(arr[i],0,1)*(h-2);i?c.lineTo(x,y):c.moveTo(x,y);}
+    c.strokeStyle=col;c.lineWidth=1.4;c.stroke();
+    c.beginPath();c.arc(w-1.5,h-clamp(arr[n-1],0,1)*(h-2),2,0,Math.PI*2);c.fillStyle=col;c.fill();
+  });
+}
+
+function stageMap(){
+  const st=$("#stage"),v=S.video;
+  const w=st.clientWidth,h=st.clientHeight;
+  const vw=v?.videoWidth||640, vh=v?.videoHeight||480;
+  const s=Math.max(w/vw,h/vh);
+  const ox=(w-vw*s)/2, oy=(h-vh*s)/2;
+  return {w,h,vw,vh,s,ox,oy,
+    X:px=>w-(ox+px*s),          // mirrored
+    Y:py=>oy+py*s};
+}
+const IRIS_L=[468,469,470,471,472], IRIS_R=[473,474,475,476,477];
+function drawOverlay(){
+  const cv=$("#overlay"),st=$("#stage");
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  const w=st.clientWidth,h=st.clientHeight;
+  if(cv.width!==w*dpr||cv.height!==h*dpr){cv.width=w*dpr;cv.height=h*dpr;}
+  const c=cv.getContext("2d"); c.setTransform(dpr,0,0,dpr,0,0); c.clearRect(0,0,w,h);
+  if(S.phase==="idle"||S.phase==="ended")return;
+  const M=stageMap(),F=S.face,G=S.gaze,P=S.pose;
+
+  // object boxes first, behind the mesh
+  for(const it of S.obj.items){
+    const [bx,by,bw,bh]=it.bbox;
+    const x1=M.X(bx), x0=M.X(bx+bw), y0=M.Y(by), y1=M.Y(by+bh);
+    c.strokeStyle=COL.flag;c.lineWidth=1.8;c.setLineDash([6,4]);
+    c.strokeRect(x0,y0,x1-x0,y1-y0);c.setLineDash([]);
+    c.font='500 11px "IBM Plex Mono",monospace';
+    const t=`${it.label} ${(it.conf*100).toFixed(0)}%`;
+    const tw=c.measureText(t).width+8;
+    c.fillStyle=COL.flag;c.fillRect(x0,Math.max(0,y0-15),tw,15);
+    c.fillStyle=COL.surface;c.fillText(t,x0+4,Math.max(11,y0-4));
+  }
+
+  if(F.present&&F.lm){
+    const flagged=F.count>=2||Math.abs(P.yaw)>25||Math.max(Math.abs(G.x)/.42,Math.abs(G.y)/.38)>1;
+    const col=flagged?COL.flag:COL.blue;
+    // sparse mesh
+    c.fillStyle=col; c.globalAlpha=.45;
+    for(let i=0;i<F.lm.length;i+=4){
+      const p=F.lm[i]; c.fillRect(M.X(p.x*M.vw)-.5,M.Y(p.y*M.vh)-.5,1.4,1.4);
+    }
+    c.globalAlpha=1;
+    // bounding brackets
+    const bx0=M.X(F.box.x1*M.vw),bx1=M.X(F.box.x0*M.vw),by0=M.Y(F.box.y0*M.vh),by1=M.Y(F.box.y1*M.vh);
+    const L=Math.min(bx1-bx0,by1-by0)*.2;
+    c.strokeStyle=col;c.lineWidth=1.5;
+    [[bx0,by0,1,1],[bx1,by0,-1,1],[bx0,by1,1,-1],[bx1,by1,-1,-1]].forEach(([x,y,sx,sy])=>{
+      c.beginPath();c.moveTo(x+sx*L,y);c.lineTo(x,y);c.lineTo(x,y+sy*L);c.stroke();});
+    // irises + gaze rays
+    if(F.lm.length>477){
+      [IRIS_L,IRIS_R].forEach(set=>{
+        let cx=0,cy=0,rr=0;
+        const pts=set.map(i=>F.lm[i]);
+        pts.forEach(p=>{cx+=p.x;cy+=p.y;}); cx/=pts.length; cy/=pts.length;
+        pts.forEach(p=>{rr=Math.max(rr,Math.hypot((p.x-cx)*M.vw,(p.y-cy)*M.vh));});
+        const X=M.X(cx*M.vw),Y=M.Y(cy*M.vh),R=Math.max(3,rr*M.s);
+        c.beginPath();c.arc(X,Y,R,0,Math.PI*2);
+        c.strokeStyle=col;c.lineWidth=1.6;c.stroke();
+        c.beginPath();c.moveTo(X,Y);c.lineTo(X+G.x*70,Y-G.y*60);
+        c.lineWidth=2;c.stroke();
+      });
+    }
+    c.font='500 11px "IBM Plex Mono",monospace';c.fillStyle=col;
+    c.fillText(`yaw ${P.yaw.toFixed(0)}  pitch ${P.pitch.toFixed(0)}  gaze ${G.x.toFixed(2)},${G.y.toFixed(2)}`,bx0,Math.max(12,by0-6));
+  }
+  drawGazeBox();
+}
+function drawGazeBox(){
+  const cv=$("#gazeCv"); if(cv.clientWidth===0)return;
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  const w=cv.clientWidth,h=cv.clientHeight;
+  if(cv.width!==w*dpr||cv.height!==h*dpr){cv.width=w*dpr;cv.height=h*dpr;}
+  const c=cv.getContext("2d");c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,w,h);
+  c.strokeStyle=COL.rule;c.lineWidth=1;
+  c.beginPath();c.moveTo(w/2,0);c.lineTo(w/2,h);c.moveTo(0,h/2);c.lineTo(w,h/2);c.stroke();
+  c.strokeStyle=COL.ink3;c.globalAlpha=.5;c.strokeRect(w*.22,h*.22,w*.56,h*.56);c.globalAlpha=1;
+  const G=S.gaze;
+  const x=clamp(w/2-G.x*(w*.9),2,w-2), y=clamp(h/2-G.y*(h*.9),2,h-2);
+  const off=Math.max(Math.abs(G.x)/.42,Math.abs(G.y)/.38)>1;
+  c.beginPath();c.arc(x,y,4,0,Math.PI*2);c.fillStyle=off?COL.flag:COL.blue;c.fill();
+}
+
+/* ---------------- loop ---------------- */
+let vts=-1;
+function tick(){
+  if(S.phase==="idle"||S.phase==="ended")return;
+  const t=now();
+  if(t-S.lastTick>=45){
+    S.lastTick=t;S.frames++;
+    if(t-S.fpsT>1000){S.fps=S.frames*1000/(t-S.fpsT);S.frames=0;S.fpsT=t;}
+    const ts=Math.max(t,vts+1); vts=ts;
+    stepFace(ts);
+    stepAudio();
+    stepObjects();
+    if(S.phase==="calibrating"){
+      if(S.face.present&&S.face.lm){
+        const c=S.cal,P=S.pose,G=S.gaze;
+        if(P.raw){c.yaw+=P.raw.yaw;c.pitch+=P.raw.pitch;c.roll+=P.raw.roll;}
+        c.gx+=G.rawx||0;c.gy+=G.rawy||0;c.n++;
+      }
+    }else{
+      let r=0;
+      if(!S.br.focused){const d=S.br.hiddenSince?(now()-S.br.hiddenSince)/1000:0;r=clamp(.55+d/8,.55,1);}
+      S.risk.browser=r;
+      fuse(); pushTraces(); renderChannels(); renderBand();
+      $("#clock").textContent=fmt(t-S.t0);
+      $("#rateNote").textContent=S.fps.toFixed(0)+" fps · 6 live channels";
+      $("#fpsNote").textContent=`${S.fps.toFixed(0)} fps · mesh + detector`;
+    }
+    drawTraces();
+  }
+  drawOverlay();
+  requestAnimationFrame(tick);
+}
+
+/* ---------------- session ---------------- */
+async function start(){
+  const btn=$("#startBtn");btn.disabled=true;btn.textContent="Requesting devices…";
+  let stream;
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({
+      video:{width:{ideal:640},height:{ideal:480},facingMode:"user"},
+      audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+  }catch(e){
+    btn.disabled=false;btn.textContent="Start session";
+    $("#permNote").textContent="Permission denied. Allow camera and microphone, then start again.";
+    $("#permNote").style.color="var(--flag)";return;
+  }
+  S.stream=stream;
+  const v=$("#video");v.srcObject=stream;S.video=v;
+  await v.play().catch(()=>{});
+  await new Promise(r=>{ if(v.videoWidth)r(); else v.onloadedmetadata=()=>r(); });
+  if(!(await initAudio(stream).catch(()=>false))) setChan("audio","off","—","microphone unavailable");
+
+  $("#empty").classList.add("hidden");
+  $("#liveBadge").classList.remove("hidden");
+  $("#fpsNote").classList.remove("hidden");
+  $("#gazeBox").classList.remove("hidden");
+  $("#gazeCap").classList.remove("hidden");
+  $("#endBtn").disabled=false;
+  $("#jsonBtn").disabled=false;
+
+  S.phase="calibrating";S.t0=now();S.fpsT=now();
+  $("#calib").classList.remove("hidden");
+  let left=8;$("#calibCount").textContent=left;
+  const iv=setInterval(()=>{
+    left--;$("#calibCount").textContent=Math.max(left,0);
+    if(left<=0){
+      clearInterval(iv);
+      const c=S.cal;
+      if(c.n>10){
+        S.base.yaw=c.yaw/c.n;S.base.pitch=c.pitch/c.n;S.base.roll=c.roll/c.n;
+        S.base.gx=c.gx/c.n;S.base.gy=c.gy/c.n;S.base.ready=true;
+      }
+      S.audio.floor=Math.min(S.audio.db-3,-40);
+      S.pose.yaw=0;S.pose.pitch=0;S.pose.roll=0;S.gaze.x=0;S.gaze.y=0;
+      $("#calib").classList.add("hidden");
+      S.phase="monitoring";S.t0=now();S.load=0;
+      logEvent("face",S.base.ready?`baseline captured from ${c.n} frames`:"baseline weak, using raw values",0);
+    }
+  },1000);
+  requestAnimationFrame(tick);
+}
+function end(){
+  if(S.phase==="idle"||S.phase==="ended")return;
+  const dur=now()-S.t0; S.durMs=dur; S.phase="ended";
+  if(S.stream)S.stream.getTracks().forEach(t=>t.stop());
+  if(S.audio.ctx)S.audio.ctx.close().catch(()=>{});
+  ["#liveBadge","#fpsNote","#calib","#gazeBox","#gazeCap"].forEach(s=>$(s).classList.add("hidden"));
+  $("#endBtn").disabled=true;$("#rateNote").textContent="session closed";
+  buildReport(dur);$("#sheet").classList.remove("hidden");
+}
+function verdictText(peak){
+  return peak>=70?"Halt recommended — refer to human review before releasing the result."
+    :peak>=45?"Flag for review — an invigilator should inspect the ledger."
+    :peak>=20?"Watch — minor deviations, no action required."
+    :"Clear — no integrity concerns raised.";
+}
+
+/* ---- warnings JSON export (plain browser download — this build isn't served through claude.ai) ---- */
+function buildWarningsJSON(){
+  const elapsedMs = S.phase==="ended" ? (S.durMs||0) : (S.t0 ? now()-S.t0 : 0);
+  const byType={};
+  S.events.forEach(e=>{ byType[e.ch]=(byType[e.ch]||0)+1; });
+  return {
+    tool:"ExamNexa",
+    session_id:S.sid,
+    generated_at:new Date().toISOString(),
+    session_status:S.phase,
+    duration_seconds:Math.round(elapsedMs/1000),
+    peak_score:Math.round(S.peak),
+    final_score:Math.round(S.score),
+    verdict:verdictText(S.peak),
+    total_warnings:S.events.length,
+    warnings_by_type:byType,
+    channel_summary:{
+      face:S.counts.face,
+      eye_gaze:S.counts.gaze,
+      head_pose:S.counts.pose,
+      prohibited_objects:S.counts.object,
+      browser_focus:{count:S.counts.browser, focus_losses:S.br.switches, seconds_away:Number(S.br.blurTotal.toFixed(1))},
+      voice_activity:S.counts.audio
+    },
+    warnings:S.events.map(e=>({
+      time_seconds:Number((e.t/1000).toFixed(1)),
+      type:e.ch,
+      message:e.msg,
+      score_delta:e.delta
+    }))
+  };
+}
+function downloadWarningsJSON(btn){
+  const orig=btn.textContent;
+  const payload=JSON.stringify(buildWarningsJSON(),null,2);
+  const blob=new Blob([payload],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url; a.download=`examnexa-${S.sid}-warnings.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),2000);
+  btn.textContent="Saved"; setTimeout(()=>btn.textContent=orig,1400);
+}
+
+function buildReport(dur){
+  const verdict=verdictText(S.peak);
+  const L=[];
+  L.push("ExamNexa session report");
+  L.push("session ......... "+S.sid);
+  L.push("duration ........ "+fmt(dur));
+  L.push("closed .......... "+new Date().toLocaleString());
+  L.push("");
+  L.push("peak score ...... "+S.peak.toFixed(0)+" / 100");
+  L.push("final score ..... "+S.score.toFixed(0)+" / 100");
+  L.push("verdict ......... "+verdict);
+  L.push("");
+  L.push("events by channel");
+  L.push("  face mesh ..... "+S.counts.face);
+  L.push("  eye gaze ...... "+S.counts.gaze);
+  L.push("  head pose ..... "+S.counts.pose);
+  L.push("  objects ....... "+S.counts.object);
+  L.push("  browser ....... "+S.counts.browser+"  ("+S.br.switches+" focus losses, "+S.br.blurTotal.toFixed(1)+"s away)");
+  L.push("  voice ......... "+S.counts.audio);
+  L.push("");
+  if(S.events.length){
+    L.push("timeline");
+    S.events.slice(-28).forEach(e=>L.push("  "+fmt(e.t)+"  "+e.ch.padEnd(8)+" "+e.msg+(e.delta?"  (+"+e.delta+")":"")));
+  }else L.push("timeline ........ no events raised");
+  L.push("");
+  L.push("media retained .. none. Frames were analysed in memory and discarded.");
+  $("#reportText").textContent=L.join("\n");
+  try{
+    const h=JSON.parse(localStorage.getItem("examnexa.sessions")||"[]");
+    h.unshift({sid:S.sid,at:Date.now(),peak:Math.round(S.peak),events:S.events.length});
+    localStorage.setItem("examnexa.sessions",JSON.stringify(h.slice(0,20)));
+  }catch(e){}
+}
+
+$("#startBtn").addEventListener("click",start);
+$("#endBtn").addEventListener("click",end);
+$("#closeSheet").addEventListener("click",()=>$("#sheet").classList.add("hidden"));
+$("#jsonBtn").addEventListener("click",()=>downloadWarningsJSON($("#jsonBtn")));
+$("#jsonBtn2").addEventListener("click",()=>downloadWarningsJSON($("#jsonBtn2")));
+$("#copyBtn").addEventListener("click",async()=>{
+  const b=$("#copyBtn");
+  try{await navigator.clipboard.writeText($("#reportText").textContent);b.textContent="Copied";}
+  catch(e){b.textContent="Select the text to copy";}
+  setTimeout(()=>b.textContent="Copy report",1800);
+});
+window.addEventListener("resize",()=>{drawOverlay();drawTraces();});
+window.ExamNexa={getState:()=>({score:S.score,level:S.level,risk:{...S.risk},events:S.events.length}),weights:WEIGHTS};
+
+drawTraces(); renderBand(); loadModels();
+</script>
+</body>
+</html>
